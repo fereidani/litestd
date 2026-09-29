@@ -1,0 +1,14 @@
+# A std binary that also depends on litestd. It must fail to compile with
+# `error[E0152]: duplicate lang item ... panic_impl`: std and litestd each
+# define the panic handler, which is how litestd rejects the mix.
+
+[package]
+name = "std-binary"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+litestd = { path = "../../.." }
+
+[workspace]

@@ -1,0 +1,82 @@
+{
+  "aliasing": "tree",
+  "all_crates": false,
+  "candidates": false,
+  "closures": "separate",
+  "features": "default",
+  "findings": [
+    {
+      "categories": [
+        "unsound-send"
+      ],
+      "function": "litestd::{impl Send for JoinHandle}"
+    },
+    {
+      "categories": [
+        "unsound-sync"
+      ],
+      "function": "litestd::{impl Sync for JoinHandle}"
+    }
+  ],
+  "generics": "written",
+  "min_confidence": 5,
+  "mir_opt_level": null,
+  "only": [
+    "null-deref",
+    "misaligned",
+    "out-of-bounds",
+    "uninit",
+    "invalid-value",
+    "use-after-free",
+    "double-free",
+    "dangling",
+    "unreachable",
+    "unchecked-overflow",
+    "invalid-utf8",
+    "aliasing",
+    "layout",
+    "precondition",
+    "unsafe-call",
+    "command-injection",
+    "path-traversal",
+    "sql-injection",
+    "nosql-injection",
+    "ssrf",
+    "open-redirect",
+    "xss",
+    "header-injection",
+    "log-injection",
+    "ssti",
+    "xxe",
+    "insecure-deserialization",
+    "regex-injection",
+    "panic-safety",
+    "trusted-trait",
+    "unsound-send",
+    "unsound-sync"
+  ],
+  "profile": "release",
+  "static_only": false,
+  "std_mode": "shipped",
+  "suppressed": [
+    "index",
+    "overflow",
+    "divide-by-zero",
+    "remainder-by-zero",
+    "unwrap",
+    "explicit",
+    "str-boundary",
+    "borrow",
+    "poison",
+    "capacity-overflow",
+    "alloc-failure",
+    "refcount-overflow",
+    "fmt",
+    "unknown",
+    "foreign",
+    "dyn-call",
+    "fn-pointer",
+    "generic-bound"
+  ],
+  "version": 1
+}

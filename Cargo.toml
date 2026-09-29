@@ -1,0 +1,301 @@
+[package]
+name = "litestd"
+# 1.EDITION.PATCH: Rust's major version, then the Rust edition.
+version = "1.24.0-alpha1"
+edition = "2024"
+rust-version = "1.85"
+description = "std's OS-dependent API (sync, thread, time, io, fs, net) for no_std crates, built directly on OS primitives"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/fereidani/litestd"
+categories = ["no-std", "concurrency", "os", "wasm"]
+keywords = ["litestd", "no_std", "mutex", "thread", "futex"]
+
+[features]
+default = [
+    "alloc",
+    "command",
+    "env",
+    "fs",
+    "io",
+    "net",
+    "path",
+    "process",
+    "stdio",
+    "sync",
+    "thread",
+    "time",
+]
+# Re-exports of the `alloc` crate (`Box`, `Vec`, `String`, `Arc`, the
+# collections, and the prelude items std adds). Without it litestd does not
+# link `alloc`, so a binary needs no global allocator.
+alloc = []
+# The `io` module: `Read`, `Write`, `Seek` and `BufRead` with their
+# adapters, `BufReader`, `BufWriter`, `LineWriter`, `Cursor`, `IoSlice`, the
+# helper functions, `Error`, `ErrorKind` and `Result`, and `pipe` with the
+# `os::fd` and `os::windows::io` handle types.
+io = [
+    "alloc",
+    "windows-sys/Wdk_Foundation",
+    "windows-sys/Wdk_Storage_FileSystem",
+    "windows-sys/Win32_Security",
+    "windows-sys/Win32_Storage_FileSystem",
+    "windows-sys/Win32_System_Console",
+    "windows-sys/Win32_System_Diagnostics_Debug",
+    "windows-sys/Win32_System_IO",
+    "windows-sys/Win32_System_LibraryLoader",
+    "windows-sys/Win32_System_Threading",
+]
+# `env`: arguments, environment variables, and the current, temporary and
+# home directories. `current_dir`, `set_current_dir` and `current_exe`
+# return `io::Result` and need `io` too.
+env = [
+    "alloc",
+    "io",
+    "path",
+    "windows-sys/Win32_Storage_FileSystem",
+    "windows-sys/Win32_System_Environment",
+    "windows-sys/Win32_System_LibraryLoader",
+    "windows-sys/Win32_UI_Shell",
+]
+# `fs` and the `os::unix::fs`, `os::linux::fs` and `os::windows::fs`
+# extension traits.
+fs = [
+    "alloc",
+    "io",
+    "path",
+    "time",
+    "windows-sys/Wdk_Foundation",
+    "windows-sys/Wdk_Storage_FileSystem",
+    "windows-sys/Win32_Security",
+    "windows-sys/Win32_Storage_FileSystem",
+    "windows-sys/Win32_System_IO",
+    "windows-sys/Win32_System_Threading",
+]
+# `net::{TcpStream, TcpListener, UdpSocket, ToSocketAddrs, ...}` and
+# `os::unix::net`. The address types are always available.
+net = [
+    "alloc",
+    "io",
+    "windows-sys/Win32_Networking_WinSock",
+    "windows-sys/Win32_Storage_FileSystem",
+    "windows-sys/Win32_System_IO",
+    "windows-sys/Win32_System_Threading",
+]
+# `path::{Path, PathBuf, ...}` and `ffi::{OsStr, OsString}`, with the
+# `os::unix::ffi` and `os::windows::ffi` extension traits.
+path = ["alloc"]
+# `process::exit`, `process::abort` and `process::id`.
+process = ["windows-sys/Win32_System_Threading"]
+# `process::{Command, Child, Output, ExitStatus, Stdio, ...}`: spawning and
+# waiting for child processes, and the `os::*::process` extension traits.
+command = [
+    "alloc",
+    "io",
+    "path",
+    "process",
+    "windows-sys/Wdk_Foundation",
+    "windows-sys/Wdk_Storage_FileSystem",
+    "windows-sys/Win32_Globalization",
+    "windows-sys/Win32_Security",
+    "windows-sys/Win32_Storage_FileSystem",
+    "windows-sys/Win32_System_Console",
+    "windows-sys/Win32_System_Environment",
+    "windows-sys/Win32_System_IO",
+    "windows-sys/Win32_System_SystemInformation",
+]
+# The `print!`, `println!`, `eprint!`, `eprintln!` and `dbg!` macros, and
+# with `io` the `io::stdin`, `io::stdout` and `io::stderr` handles.
+stdio = [
+    "windows-sys/Wdk_Storage_FileSystem",
+    "windows-sys/Win32_Storage_FileSystem",
+    "windows-sys/Win32_System_Console",
+    "windows-sys/Win32_System_IO",
+    "windows-sys/Win32_System_Threading",
+]
+# `Mutex`, `RwLock`, `Condvar`, `Once`, `OnceLock`, `LazyLock` and `Barrier`,
+# with std's poison types.
+sync = [
+    "windows-sys/Win32_System_Performance",
+    "windows-sys/Win32_System_Threading",
+]
+# `thread::spawn`, `scope`, `park`, `sleep`, `current` and `thread_local!`,
+# and `os::unix::thread` and `os::windows::thread`.
+thread = [
+    "alloc",
+    "io",
+    "windows-sys/Win32_Security",
+    "windows-sys/Win32_System_Performance",
+    "windows-sys/Win32_System_SystemInformation",
+    "windows-sys/Win32_System_Threading",
+]
+# `Instant`, `SystemTime`, `UNIX_EPOCH` and `SystemTimeError`.
+time = [
+    "windows-sys/Win32_System_Performance",
+    "windows-sys/Win32_System_SystemInformation",
+]
+# Registers `alloc::System` as the global allocator. Binaries only.
+global-allocator = []
+# Makes the panic handler print the panic location to stderr before it
+# terminates the process. No effect together with `custom-panic-handler`.
+panic-location = [
+    "windows-sys/Wdk_Storage_FileSystem",
+    "windows-sys/Win32_System_Console",
+    "windows-sys/Win32_System_IO",
+    "windows-sys/Win32_System_Threading",
+]
+# Makes the panic handler print the panic message after the location, as
+# std does. Every panic's message then stays in the program with what it
+# formats, such as the `Debug` of the error that an `unwrap` reports: from a
+# few KiB to tens of KiB. Binaries only; implies `panic-location`, and has no
+# effect together with `custom-panic-handler`.
+panic-message = ["panic-location"]
+# For binaries that define their own `#[panic_handler]`: compiles litestd's
+# out. Libraries must never enable it; it silences litestd's std detection
+# for every program that uses them.
+custom-panic-handler = []
+# Needs a nightly compiler; off by default. `thread_local!` keeps each value
+# in a native `#[thread_local]` static of its own, as std does, instead of
+# finding it through an OS key and a per-thread table, which makes access
+# several times faster. No effect without `thread`.
+nightly = []
+# For test binaries only, which always link std: compiles out litestd's
+# `#[panic_handler]` so it does not collide with std's. Never enable this in
+# anything that ships; use it from `[dev-dependencies]` or on the command
+# line for tests.
+test-with-std = []
+
+# WASI's C library, wasi-libc, provides the POSIX calls litestd shares with
+# Unix.
+[target.'cfg(any(unix, target_os = "wasi"))'.dependencies]
+libc = { version = "0.2.189", default-features = false }
+
+[target.'cfg(windows)'.dependencies]
+# The base every build uses; each feature above adds what its modules need.
+windows-sys = { version = "0.61.2", features = [
+    "Win32_Foundation",
+    "Win32_System_Memory",
+] }
+
+[[example]]
+name = "hello"
+required-features = ["global-allocator", "stdio"]
+
+[[example]]
+name = "consumer"
+required-features = [
+    "global-allocator",
+    "panic-location",
+    "alloc",
+    "io",
+    "process",
+    "stdio",
+    "time",
+]
+
+[[example]]
+name = "panic"
+required-features = ["global-allocator"]
+
+[[example]]
+name = "threads"
+required-features = [
+    "global-allocator",
+    "alloc",
+    "stdio",
+    "sync",
+    "thread",
+    "time",
+]
+
+[[example]]
+name = "startup"
+required-features = ["global-allocator", "env", "io", "stdio"]
+
+[[example]]
+name = "custom_panic"
+required-features = [
+    "global-allocator",
+    "custom-panic-handler",
+    "process",
+    "stdio",
+]
+
+# Starts itself with arguments that the test harness would reject.
+[[test]]
+name = "env_process"
+harness = false
+required-features = ["env"]
+
+# Runs itself in a time namespace, where std's test harness cannot read the
+# clock on targets with a 32-bit `time_t`.
+[[test]]
+name = "time_namespace"
+harness = false
+required-features = ["sync", "thread", "time"]
+
+# Benchmarks against std, one binary per area: run `scripts/bench.sh`.
+[[bench]]
+name = "sync"
+harness = false
+required-features = ["test-with-std", "sync", "thread", "time"]
+
+[[bench]]
+name = "fs"
+harness = false
+required-features = ["test-with-std", "env", "fs", "stdio"]
+
+[[bench]]
+name = "net"
+harness = false
+required-features = ["test-with-std", "command", "net"]
+
+[[bench]]
+name = "io"
+harness = false
+required-features = ["test-with-std", "io", "fs"]
+
+[package.metadata.docs.rs]
+features = [
+    "alloc",
+    "command",
+    "env",
+    "fs",
+    "io",
+    "net",
+    "path",
+    "process",
+    "stdio",
+    "sync",
+    "thread",
+    "time",
+]
+rustdoc-args = ["--cfg", "docsrs"]
+
+[lints.rust]
+unsafe_op_in_unsafe_fn = "deny"
+missing_docs = "warn"
+missing_debug_implementations = "warn"
+unreachable_pub = "warn"
+rust_2018_idioms = { level = "warn", priority = -1 }
+
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+nursery = { level = "warn", priority = -1 }
+alloc_instead_of_core = "warn"
+expect_used = "deny"
+missing_safety_doc = "deny"
+panic = "deny"
+std_instead_of_alloc = "warn"
+std_instead_of_core = "warn"
+todo = "deny"
+undocumented_unsafe_blocks = "deny"
+unimplemented = "deny"
+unwrap_used = "deny"
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
+codegen-units = 1
+lto = true

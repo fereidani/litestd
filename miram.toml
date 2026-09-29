@@ -1,0 +1,3 @@
+# litestd terminates the process on every panic, so panics are not faults
+# for this analysis; undefined behavior and tainted flows are.
+suppress = "panic"

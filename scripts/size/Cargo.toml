@@ -1,0 +1,27 @@
+# Small programs that scripts/size.sh builds twice, against std and, with
+# the `lite` feature, against litestd, to compare their sizes.
+
+[package]
+name = "size-probe"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+# A workspace of its own, apart from litestd's package.
+[workspace]
+
+[features]
+# Builds the programs as `no_std` binaries on litestd.
+lite = ["dep:litestd"]
+
+[dependencies]
+litestd = { path = "../..", optional = true, features = ["global-allocator"] }
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
+lto = true
+codegen-units = 1
+strip = true

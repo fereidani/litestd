@@ -1,0 +1,12 @@
+# A `no_std` library that uses litestd in place of std. It must compile.
+
+[package]
+name = "no-std-library"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+litestd = { path = "../../.." }
+
+[workspace]

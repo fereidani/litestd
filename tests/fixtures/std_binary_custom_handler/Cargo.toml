@@ -1,0 +1,17 @@
+# A std binary that depends on litestd with `custom-panic-handler` and
+# defines no handler of its own. It type-checks: this is the gap in
+# litestd's std detection that makes the feature forbidden in libraries, and
+# proof that the feature really compiles litestd's handler out. (Linking it
+# fails on GNU targets, where std and litestd both define
+# `rust_eh_personality`.)
+
+[package]
+name = "std-binary-custom-handler"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+litestd = { path = "../../..", features = ["custom-panic-handler"] }
+
+[workspace]

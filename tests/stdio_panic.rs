@@ -20,8 +20,13 @@ use std::{
 };
 
 /// Returns the cargo running these tests, or `None` if the test binary was
-/// started some other way, such as under wine.
+/// started some other way, such as under wine, or cannot start it, as on
+/// WebAssembly, which has no child processes.
 fn cargo() -> Option<OsString> {
+    if cfg!(target_family = "wasm") {
+        eprintln!("WebAssembly has no child processes; skipping");
+        return None;
+    }
     let cargo = std::env::var_os("CARGO");
     if cargo.is_none() {
         eprintln!("CARGO is not set; skipping: run through `cargo test`");

@@ -1,0 +1,194 @@
+# Tests litestd on Linux, Windows and macOS, and on Linux also lints the
+# other targets, runs the WebAssembly tests, and runs Miri for Linux, macOS
+# and Windows, whose programs Miri interprets on any host. It runs on pushes
+# to `main`, for a pull request once the owner approves the run, and when
+# started by hand.
+#
+# Setup, once: under Settings > Environments, create an environment named
+# `ci` and add the owner as its required reviewer. Each pull request run then
+# waits for that approval before any job starts, and waiting costs no runner
+# time. Without the environment's reviewer, pull request runs start at once.
+# Pushes to `main` and runs started by hand from the Actions tab need no
+# approval.
+
+name: CI
+
+on:
+  # Pushes take no path filter: GitHub skips a filtered workflow when it
+  # cannot diff the push, as when a force push replaces the root commit.
+  push:
+    branches: [main]
+  pull_request:
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - "logo.svg"
+      - "LICENSE-*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A new push to a pull request or to `main` cancels its older run.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_INCREMENTAL: 0
+  CARGO_NET_RETRY: 10
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+  RUSTUP_MAX_RETRIES: 10
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  approval:
+    name: Owner approval
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    environment: ci
+    steps:
+      - run: echo "The owner approved this run."
+
+  test:
+    name: Test (${{ matrix.os }})
+    needs: approval
+    if: ${{ !cancelled() && contains(fromJSON('["success", "skipped"]'), needs.approval.result) }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install Rust
+        run: |
+          rustup toolchain install stable --profile minimal --component clippy --no-self-update
+          rustup default stable
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - name: Clippy
+        run: cargo clippy --all-targets --features test-with-std -- -D warnings
+      - name: Clippy, no_std examples
+        run: |
+          cargo clippy --examples --features global-allocator,panic-location -- -D warnings
+          cargo clippy --examples --features global-allocator,panic-message -- -D warnings
+      - name: Test
+        run: cargo test --no-fail-fast --features test-with-std
+      - name: Run the no_std examples
+        run: |
+          cargo build --examples --features global-allocator,panic-location
+          for example in hello consumer threads startup; do
+            "target/debug/examples/$example"
+          done
+
+  checks:
+    name: Format, MSRV, other targets, nightly (Linux)
+    needs: approval
+    if: ${{ !cancelled() && contains(fromJSON('["success", "skipped"]'), needs.approval.result) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install Rust
+        run: |
+          rustup toolchain install stable --profile minimal --component clippy --no-self-update \
+            --target x86_64-unknown-freebsd,x86_64-unknown-netbsd \
+            --target i686-unknown-linux-gnu,i686-unknown-linux-musl
+          rustup toolchain install nightly --profile minimal --component rustfmt --no-self-update
+          rustup toolchain install 1.85.0 --profile minimal --no-self-update
+          rustup default stable
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - name: Format
+        run: cargo +nightly fmt --check
+      - name: MSRV
+        run: cargo +1.85.0 check
+      - name: Clippy for the other targets
+        run: |
+          for target in x86_64-unknown-freebsd x86_64-unknown-netbsd; do
+            cargo clippy --all-targets --features test-with-std --target "$target" -- -D warnings
+          done
+          # 32-bit and musl targets, whose C types differ.
+          for target in i686-unknown-linux-gnu i686-unknown-linux-musl; do
+            cargo clippy --lib --target "$target" -- -D warnings
+          done
+      - name: Test the nightly feature
+        run: cargo +nightly test --no-fail-fast --features test-with-std,nightly
+
+  wasm:
+    name: WebAssembly (Linux)
+    needs: approval
+    if: ${{ !cancelled() && contains(fromJSON('["success", "skipped"]'), needs.approval.result) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      CARGO_TARGET_WASM32_WASIP1_RUNNER: node --no-warnings scripts/wasi-run.mjs
+      CARGO_TARGET_WASM32_WASIP1_THREADS_RUNNER: node --no-warnings scripts/wasi-run.mjs
+      CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUNNER: node scripts/wasm-run.mjs
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+      - name: Install Rust
+        run: |
+          rustup toolchain install stable --profile minimal --component clippy --no-self-update \
+            --target wasm32-wasip1,wasm32-wasip2,wasm32-unknown-unknown
+          rustup toolchain install nightly --profile minimal --component clippy --no-self-update \
+            --target wasm32-wasip1-threads
+          rustup default stable
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - name: Clippy
+        run: |
+          for target in wasm32-wasip1 wasm32-unknown-unknown; do
+            cargo clippy --all-targets --features test-with-std --target "$target" -- -D warnings
+          done
+          # `std::os::wasi` is unstable on WASI 0.2, so its tests do not build.
+          cargo clippy --lib --examples --features global-allocator,panic-location \
+            --target wasm32-wasip2 -- -D warnings
+          cargo +nightly clippy --all-targets --features test-with-std,nightly \
+            --target wasm32-wasip1-threads -- -D warnings
+      - name: Test on WASI 0.1
+        run: cargo test --no-fail-fast --tests --features test-with-std --target wasm32-wasip1
+      - name: Test on WASI 0.1 with threads
+        run: >-
+          cargo +nightly test --no-fail-fast --tests --features test-with-std,nightly
+          --target wasm32-wasip1-threads
+      - name: Test on wasm32-unknown-unknown
+        run: cargo test --no-fail-fast --tests --features test-with-std --target wasm32-unknown-unknown
+
+  miri:
+    name: Miri, ${{ matrix.target }}, ${{ matrix.borrows }} borrows
+    needs: approval
+    if: ${{ !cancelled() && contains(fromJSON('["success", "skipped"]'), needs.approval.result) }}
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [x86_64-unknown-linux-gnu, aarch64-apple-darwin, x86_64-pc-windows-msvc]
+        borrows: [stacked, tree]
+        include:
+          - borrows: tree
+            flags: -Zmiri-tree-borrows
+          # Miri emulates too few Windows functions for every test: the
+          # targets that need another are reported and left out.
+          - target: x86_64-pc-windows-msvc
+            unsupported: --allow-unsupported
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install Rust
+        run: rustup toolchain install nightly --profile minimal --component miri,rust-src --no-self-update
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          key: ${{ matrix.target }}
+          cache-directories: ~/.cache/miri
+      - name: Miri
+        env:
+          MIRIFLAGS: -Zmiri-strict-provenance -Zmiri-disable-isolation ${{ matrix.flags }}
+        # Several test targets at a time, as Miri runs each on one thread.
+        run: scripts/miri.sh ${{ matrix.unsupported }} ${{ matrix.target }}
